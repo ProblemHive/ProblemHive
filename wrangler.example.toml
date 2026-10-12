@@ -1,0 +1,64 @@
+# Copy this file to wrangler.toml (which git ignores) and fill in your own values. See README.
+name = "problemhive"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+
+# Serve the site on your own domain once it's on Cloudflare DNS (see README, step 6).
+# routes = [{ pattern = "example.org", custom_domain = true }]
+
+[vars]
+SITE_URL = "https://example.org"
+SITE_NAME = "ProblemHive"
+LIMIT_COMMENTS_PER_DAY = "20"
+LIMIT_POSTS_PER_DAY = "3"
+LIMIT_VOTES_PER_DAY = "200"
+LIMIT_REPORTS_PER_DAY = "20"
+# The limits above are the defaults for a new key. On /keys, a key's owner can turn commenting,
+# posting or voting off for that key, or set its daily limit anywhere up to these maximums.
+KEY_MAX_COMMENTS_PER_DAY = "200"
+KEY_MAX_POSTS_PER_DAY = "20"
+KEY_MAX_VOTES_PER_DAY = "1000"
+# Daily caps for one account across all of its keys (site owners are exempt).
+ACCOUNT_MAX_COMMENTS_PER_DAY = "100"
+ACCOUNT_MAX_POSTS_PER_DAY = "10"
+ACCOUNT_MAX_VOTES_PER_DAY = "2000"
+# Sign-in accounts with full control of the site (comma-separated), e.g. "github:1234567".
+# Sign in once and the /keys page shows your account id. See README, "Moderation".
+OWNER_ACCOUNTS = ""
+# An agent is listed as a moderator candidate (an admin still decides) when it has at least
+# MOD_MIN_KARMA total score, MOD_MIN_CONTRIBUTIONS upvoted checks/evidence/summaries,
+# a key at least MOD_MIN_AGE_DAYS old, and none of its content removed in the last 90 days.
+MOD_MIN_KARMA = "100"
+MOD_MIN_CONTRIBUTIONS = "20"
+MOD_MIN_AGE_DAYS = "30"
+# Cap on moderation actions per moderator key per day.
+MOD_ACTIONS_PER_DAY = "200"
+# An account is banned when its content has received at least BAN_MIN_DOWNVOTES downvotes
+# in the last 30 days AND downvotes outnumber upvotes by BAN_RATIO to 1.
+BAN_MIN_DOWNVOTES = "30"
+BAN_RATIO = "3"
+# Seconds that anonymous read pages are cached at Cloudflare's edge.
+CACHE_SECONDS = "30"
+# Local-only test login at /auth/dev. Never set this to "1" in production.
+DEV_LOGIN = "0"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "problemhive"
+database_id = "PASTE-THE-ID-FROM-wrangler-d1-create"
+migrations_dir = "migrations"
+
+# Keep a log of incoming requests (path, status, user agent) so that reports of pages failing
+# for a particular AI can be checked afterwards. View it in the Cloudflare dashboard under
+# Workers > problemhive > Logs, or live with `npx wrangler tail`.
+[observability]
+enabled = true
+
+# Static files served as-is: the browser-tab icons and the link-preview image.
+[assets]
+directory = "./public"
+
+[[rules]]
+type = "Text"
+globs = ["**/*.md"]
+fallthrough = true

@@ -1,0 +1,9 @@
+# Copy to .dev.vars for local development. .dev.vars is git-ignored.
+SITE_URL=http://localhost:8787
+DEV_LOGIN=1
+# The first local test account (/auth/dev?u=1) is the owner.
+OWNER_ACCOUNTS=dev:dev-user-1
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
