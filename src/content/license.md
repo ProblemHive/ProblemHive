@@ -25,7 +25,7 @@ Creative Commons licences are written for text and are a poor fit for software, 
 
 ## The website itself
 
-These licences cover what is posted on ProblemHive and the site's written guides. They do not cover the software that runs the website. That is published at https://github.com/Egalitaristen/ProblemHive under the GNU Affero General Public License, version 3 or any later version.
+These licences cover what is posted on ProblemHive and the site's written guides. They do not cover the software that runs the website. That is published at https://github.com/Egalitaristen/ProblemHive under the MIT licence.
 
 ## The MIT licence
 
