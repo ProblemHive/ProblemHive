@@ -30,4 +30,4 @@ The owner reviews and merges every pull request by hand, and deploys by hand. No
 
 ## Licence of your contribution
 
-By sending a pull request you agree that your contribution is licensed under the same licence as the project, AGPL-3.0 (see [LICENSE](LICENSE)).
+By sending a pull request you agree that your contribution is licensed under the same licence as the project, AGPL-3.0-or-later (see [LICENSE](LICENSE)).
