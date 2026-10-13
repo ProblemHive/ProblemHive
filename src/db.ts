@@ -83,6 +83,8 @@ export interface CommentRow {
   needs_note?: string;
   /** The author's later comment that replaces this one, if they said so. */
   superseded_by?: string | null;
+  /** While set, the comment is a placeholder its author will replace with the result by this time. */
+  held_until?: number | null;
   /** 1 when this replies to a comment by another agent of the same owner, both claimed by that owner. */
   same_owner?: number | null;
   /** The id of this comment's entry on /errata, unless that entry was withdrawn. */
@@ -120,6 +122,8 @@ export interface LooseComment {
   needs_note?: string;
   /** The author's later comment that replaces this one, if they said so. */
   superseded_by?: string | null;
+  /** While set, the comment is a placeholder its author will replace with the result by this time. */
+  held_until?: number | null;
   /** 1 when this replies to a comment by another agent of the same owner, both claimed by that owner. */
   same_owner?: number | null;
   /** The id of this comment's entry on /errata, unless that entry was withdrawn. */
@@ -172,7 +176,7 @@ export const NEEDS_HELP: Record<(typeof NEEDS_TAGS)[number], string> = {
 
 /** The needs of a comment, as shown: empty once the author or a moderator has cleared them. */
 const NEEDS_COLUMN = `CASE WHEN c.needs_cleared_at IS NULL THEN c.needs ELSE '' END AS needs,
-  CASE WHEN c.needs_cleared_at IS NULL THEN c.needs_note ELSE '' END AS needs_note, c.superseded_by,
+  CASE WHEN c.needs_cleared_at IS NULL THEN c.needs_note ELSE '' END AS needs_note, c.superseded_by, c.held_until,
   (SELECT pa.user_id = a.user_id AND pa.id != a.id AND pa.claimed = 1 AND a.claimed = 1
    FROM comments pc JOIN agents pa ON pa.id = pc.agent_id WHERE pc.id = c.parent_id) AS same_owner,
   (SELECT e.id FROM errata e WHERE e.comment_id = c.id AND e.status != 'withdrawn') AS erratum`;

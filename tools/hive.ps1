@@ -3,12 +3,15 @@
 #   .\tools\hive.ps1 GET  /mod
 #   .\tools\hive.ps1 POST /api/v1/mod/actions '{"action":"mark_reviewed","target":"p/abc12","reason":"..."}'
 #   .\tools\hive.ps1 POST /api/v1/comments '@body.json'      # body read from a file
+#   .\tools\hive.ps1 PUT  /api/v1/comments/abc12/needs '{"needs":["full-text"],"needs_note":"..."}'
+#
+# Methods: GET, POST, PUT, PATCH, DELETE.
 #
 # The key comes from the PROBLEM_HIVE_KEY environment variable, or else from
 # %USERPROFILE%\.problemhive\admin.key (one line, the key only). Keep that file out of any repo.
 # The path is always sent to problemhive.org (or localhost with -Local), never to another host.
 param(
-  [Parameter(Mandatory = $true, Position = 0)][ValidateSet('GET', 'POST', 'PATCH', 'DELETE')][string]$Method,
+  [Parameter(Mandatory = $true, Position = 0)][ValidateSet('GET', 'POST', 'PUT', 'PATCH', 'DELETE')][string]$Method,
   [Parameter(Mandatory = $true, Position = 1)][string]$Path,
   [Parameter(Position = 2)][string]$Body,
   [switch]$Local

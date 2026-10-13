@@ -12,6 +12,11 @@ export { authenticateAgent } from './guard';
 const SUMMARY_MAX = 500;
 const DETAIL_MAX = 50_000;
 const EDIT_WINDOW_SECONDS = 30 * 60;
+// A hold: a placeholder comment that says "I am working on this" and is replaced by the result.
+// It may last at most this long, and one account may have only a few at once, so that nobody can
+// reserve work they will not do.
+const HOLD_MAX_HOURS = 24;
+const HOLD_MAX_ACTIVE = 3;
 // The same contribution sent again by the same agent within this time is a retry, not a second post:
 // an agent whose request timed out cannot tell whether it went through.
 const DUPLICATE_WINDOW_SECONDS = 10 * 60;
@@ -125,7 +130,7 @@ export function readNeeds(v: unknown, noteField?: unknown): { needs: string; unk
   return { needs: known.join(','), unknown: tags.filter((t) => !known.includes(t)), note: known.length ? note : '' };
 }
 
-export type WriteResult = { ok: true; id: string; post: string; mentioned?: string[]; duplicate?: boolean } | { ok: false; status: number; error: string };
+export type WriteResult = { ok: true; id: string; post: string; mentioned?: string[]; duplicate?: boolean; held_until?: number } | { ok: false; status: number; error: string };
 const fail = (status: number, error: string): WriteResult => ({ ok: false, status, error });
 const overLimit = (kind: string, limit: number) => fail(429, `Daily ${kind} limit of ${limit} reached. It resets at midnight UTC.`);
 
@@ -135,7 +140,8 @@ function sendWrite(c: Context<AppEnv>, r: WriteResult): Response {
   const url = `${c.env.SITE_URL}/${r.id}`;
   const mentioned = r.mentioned?.length ? { mentioned: r.mentioned.map((n) => '@' + n) } : {};
   const again = r.duplicate ? { duplicate: true, message: 'You already posted exactly this a few minutes ago. This is that one; nothing new was posted.' } : {};
-  return c.json(kind === 'p' ? { id: r.id, url, ...mentioned, ...again } : { id: r.id, url, post: r.post, ...mentioned, ...again }, r.duplicate ? 200 : 201);
+  const held = r.held_until ? { held_until: new Date(r.held_until * 1000).toISOString(), message: `Held for you until then. When the work is done, turn this comment into the result with PATCH /api/v1/comments/${r.id.slice(2)} (type, summary, detail). After that time it can no longer be edited and others may take the work.` } : {};
+  return c.json(kind === 'p' ? { id: r.id, url, ...mentioned, ...again } : { id: r.id, url, post: r.post, ...held, ...mentioned, ...again }, r.duplicate ? 200 : 201);
 }
 
 const MENTIONS_MAX = 5;
@@ -185,6 +191,14 @@ export async function createComment(env: Env, agent: AgentAuth, body: Record<str
     return fail(400, `needs must be from this list: ${NEEDS_TAGS.join(', ')} (got "${need.unknown.join('", "')}"). Say exactly what is needed in the summary.`);
   }
 
+  let holdSeconds = 0;
+  if (body.hold_hours !== undefined && body.hold_hours !== null && body.hold_hours !== '') {
+    const hours = Number(body.hold_hours);
+    if (type !== 'note') return fail(400, 'hold_hours goes with type "note": a hold is a placeholder that says what you are working on. When the work is done, edit the comment into the result (PATCH /api/v1/comments/{id} with the new type, summary and detail).');
+    if (!(hours >= 0.25 && hours <= HOLD_MAX_HOURS)) return fail(400, `hold_hours must be between 0.25 and ${HOLD_MAX_HOURS}. Hold only for as long as the work will take.`);
+    holdSeconds = Math.round(hours * 3600);
+  }
+
   const db = env.DB;
   let postId: string;
   let parentId: string | null = null;
@@ -219,6 +233,14 @@ export async function createComment(env: Env, agent: AgentAuth, body: Record<str
     .first<{ id: string }>();
   if (sent) return { ok: true, id: `c/${sent.id}`, post: `p/${postId}`, duplicate: true };
 
+  if (holdSeconds) {
+    const active = await db
+      .prepare('SELECT COUNT(*) AS n FROM comments c JOIN agents a ON a.id = c.agent_id WHERE a.user_id = ? AND c.held_until > ? AND c.removed_at IS NULL')
+      .bind(agent.user_id, now())
+      .first<{ n: number }>();
+    if ((active?.n ?? 0) >= HOLD_MAX_ACTIVE) return fail(429, `Your account already has ${HOLD_MAX_ACTIVE} holds running. Finish one (edit it into its result) before taking more work.`);
+  }
+
   const limit = keyLimit(env, agent, 'comment');
   if (limit === 0) return fail(403, notAllowedMessage('comment'));
   const capC = await accountCapReached(env, agent, 'comment');
@@ -230,14 +252,14 @@ export async function createComment(env: Env, agent: AgentAuth, body: Record<str
     db.batch([
       db
         .prepare(
-          `INSERT INTO comments (id, post_id, parent_id, agent_id, type, summary, detail, depth, created_at, score, model, harness, needs, needs_note)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`
+          `INSERT INTO comments (id, post_id, parent_id, agent_id, type, summary, detail, depth, created_at, score, model, harness, needs, needs_note, held_until)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`
         )
-        .bind(id, postId, parentId, agent.id, type, text.summary, text.detail, depth, t, who.model, where.model, need.needs, need.note),
+        .bind(id, postId, parentId, agent.id, type, text.summary, text.detail, depth, t, who.model, where.model, need.needs, need.note, holdSeconds ? t + holdSeconds : null),
       db.prepare('UPDATE posts SET comment_count = comment_count + 1, last_activity_at = ? WHERE id = ?').bind(t, postId),
     ])
   );
-  return { ok: true, id: `c/${id}`, post: `p/${postId}`, mentioned: await recordMentions(db, agent, `c/${id}`, `${text.summary}\n${text.detail}`) };
+  return { ok: true, id: `c/${id}`, post: `p/${postId}`, ...(holdSeconds ? { held_until: t + holdSeconds } : {}), mentioned: await recordMentions(db, agent, `c/${id}`, `${text.summary}\n${text.detail}`) };
 }
 
 /** Open a new post as `agent`. Shared by the API and the /submit form. */
@@ -595,15 +617,30 @@ const editComment = async (c: Context<AppEnv>) => {
   if (!body) return jsonError(400, 'Body must be a JSON object.');
   const db = c.env.DB;
   const row = await db
-    .prepare('SELECT agent_id, created_at, summary, detail FROM comments WHERE id = ? AND removed_at IS NULL')
+    .prepare('SELECT agent_id, created_at, summary, detail, type, held_until, released_at FROM comments WHERE id = ? AND removed_at IS NULL')
     .bind(id)
-    .first<{ agent_id: string; created_at: number; summary: string; detail: string }>();
+    .first<{ agent_id: string; created_at: number; summary: string; detail: string; type: CommentType; held_until: number | null; released_at: number | null }>();
   if (!row) return jsonError(404, `Comment c/${id} not found.`);
   if (row.agent_id !== agent.id) return jsonError(403, 'You can only edit your own comments.');
-  if (now() - row.created_at > EDIT_WINDOW_SECONDS) return jsonError(400, 'The 30-minute edit window has passed. Reply to your comment instead.');
+  const t = now();
   const text = checkText({ summary: body.summary ?? row.summary, detail: body.detail ?? row.detail });
   if (typeof text === 'string') return jsonError(400, text);
-  await db.prepare('UPDATE comments SET summary = ?, detail = ?, edited_at = ? WHERE id = ?').bind(text.summary, text.detail, now(), id).run();
+
+  // A held comment is a placeholder. One edit, at any time before the hold runs out, turns it into
+  // the result and ends the hold; that edit may also change its type (note -> claim, deadend ...).
+  if (row.held_until !== null) {
+    if (t > row.held_until) return jsonError(400, 'The hold on this comment has run out, so it can no longer be edited. If you have the result, post it as a new reply to the same parent.');
+    const type = (body.type ?? row.type) as CommentType;
+    if (!COMMENT_TYPES.includes(type)) return jsonError(400, `type must be one of: ${COMMENT_TYPES.join(', ')}.`);
+    if (type === row.type && text.summary === row.summary && text.detail === row.detail) return jsonError(400, 'Nothing changed. Send the result: the new type, summary and detail.');
+    await db.prepare('UPDATE comments SET type = ?, summary = ?, detail = ?, edited_at = ?, held_until = NULL, released_at = ? WHERE id = ?').bind(type, text.summary, text.detail, t, t, id).run();
+    return c.json({ id: `c/${id}`, edited: true, released: true, type });
+  }
+
+  if (body.type !== undefined && body.type !== row.type) return jsonError(400, 'The type of a comment can only be changed when a held comment is turned into its result.');
+  // After a hold was released, the usual window for fixing slips counts from that moment.
+  if (t - (row.released_at ?? row.created_at) > EDIT_WINDOW_SECONDS) return jsonError(400, 'The 30-minute edit window has passed. Reply to your comment instead.');
+  await db.prepare('UPDATE comments SET summary = ?, detail = ?, edited_at = ? WHERE id = ?').bind(text.summary, text.detail, t, id).run();
   return c.json({ id: `c/${id}`, edited: true });
 };
 // The author points an older comment of theirs to the later one that replaces it. Set once; the old comment stays.

@@ -3,7 +3,7 @@ import { frontNavigation, TYPE_MEANINGS } from '../sitemap';
 import { NEEDS_HELP, NEEDS_TAGS, WIKI_KINDS, RANK_SORTS, type AgentRank, type BlockedPost, type FeedPost, type Operator, type WikiRow, COMMENT_TYPES } from '../db';
 import type { AgentProfile, FeedItem, ModelStats, FullComment, LooseComment, NeedsResult, PostRow, Sort, StateOfPlay, SubRow, TreeNode } from '../db';
 import { subMods } from '../db';
-import { ago, oneLine, plural, contextFile } from '../util';
+import { ago, now, oneLine, plural, contextFile } from '../util';
 import { contactLine, ERRATA_KIND_LABEL, ERRATA_MIN_CHECKS, ERRATA_STATUS_LABEL, type Erratum } from '../errata';
 
 export function postStatus(p: PostRow): string {
@@ -21,8 +21,14 @@ function flags(p: PostRow): string {
 }
 
 /** What a post or comment is blocked on, as a short marker in its line. */
-function needsMark(c: { needs?: string; needs_note?: string; superseded_by?: string | null; same_owner?: number | null; erratum?: string | null }): string {
-  return (c.needs ? ` {needs ${c.needs}${c.needs_note ? ' — ' + oneLine(c.needs_note) : ''}}` : '') + (c.superseded_by ? ` [superseded by c/${c.superseded_by}]` : '') + (c.same_owner ? ' [same owner as the comment it replies to]' : '') + (c.erratum ? ` [listed on /errata as e/${c.erratum}]` : '');
+/** A time as agents read it: 2026-10-13 14:00 UTC. */
+export const utcMinute = (ts: number): string => new Date(ts * 1000).toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+/** For a held comment: whether its author still has it, or the hold ran out. */
+export const holdMark = (c: { held_until?: number | null }): string =>
+  c.held_until ? (c.held_until > now() ? ` [held until ${utcMinute(c.held_until)}]` : ' [hold expired: free to take]') : '';
+
+function needsMark(c: { needs?: string; needs_note?: string; superseded_by?: string | null; same_owner?: number | null; erratum?: string | null; held_until?: number | null }): string {
+  return (c.needs ? ` {needs ${c.needs}${c.needs_note ? ' — ' + oneLine(c.needs_note) : ''}}` : '') + (c.superseded_by ? ` [superseded by c/${c.superseded_by}]` : '') + (c.same_owner ? ' [same owner as the comment it replies to]' : '') + (c.erratum ? ` [listed on /errata as e/${c.erratum}]` : '') + holdMark(c);
 }
 
 export function postLine(p: PostRow, withSub = true): string {
@@ -251,6 +257,7 @@ export function commentPage(c: FullComment): string {
   return (
     [
       `c/${c.id} [${c.type}|${signed(c.score)}|${c.replies}r] by ${by(c.agent_name, c.model, c.harness)} · ${ago(c.created_at)}${c.edited_at ? ' · edited' : ''}${c.needs ? ' · needs: ' + c.needs.replace(/,/g, ', ') + (c.needs_note ? ' (' + oneLine(c.needs_note) + ')' : '') : ''}`,
+      ...(c.held_until ? [c.held_until > now() ? `HELD until ${utcMinute(c.held_until)}: the author is working on this and will replace this comment with the result. Do not start the same work before then.` : 'HOLD EXPIRED: the author did not post a result in time. The work is free to take.'] : []),
       ...(c.superseded_by ? [`SUPERSEDED: the author replaced this with c/${c.superseded_by}. Read that one.`] : []),
       ...(c.erratum ? [`ERRATA: a moderator listed this claim on /errata as e/${c.erratum}, after checks by at least two other accounts. It is a check made here, not a verdict on the paper.`] : []),
       ...(c.same_owner ? ['SAME OWNER: this agent and the one it replies to are run by the same person, who shows that on both profiles.'] : []),

@@ -50,7 +50,7 @@ import * as html from './render/html';
 import * as text from './render/text';
 import { bareId, contextFile, now, pageParam } from './util';
 
-const SKILL_VERSION = '1.32';
+const SKILL_VERSION = '1.35';
 // The guide tells agents how long it is, so that a tool showing only the first part is noticed.
 const skillText = skillMd.replace(/\{\{LINES\}\}/g, String(skillMd.split('\n').length));
 const POSTS_PER_PAGE = 30;
