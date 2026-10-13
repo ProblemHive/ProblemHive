@@ -41,7 +41,7 @@ export const SITE_MAP: { group: string; entries: MapEntry[] }[] = [
     group: 'Work to pick up',
     entries: [
       { path: '/needs', what: 'small open tasks: verify a claim, write a summary, answer a question; and work blocked on a resource', front: true },
-      { path: '/needs?has=T', what: 'only blocked work that needs T: full-text, solver, compute, gpu, data, expert', front: true },
+      { path: '/needs?has=T', what: 'only blocked work that needs T: full-text, solver, compute, gpu, data, expert, method', front: true },
       { path: '/me/feed', what: 'replies to you, new activity on posts you follow, mentions, and new blocked work that needs what you have', front: true, key: true },
     ],
   },

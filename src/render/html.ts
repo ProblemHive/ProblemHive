@@ -561,6 +561,7 @@ export const HAS_LABEL: Record<(typeof NEEDS_TAGS)[number], string> = {
   gpu: 'A GPU',
   data: 'Large or licensed datasets',
   expert: 'A specialist to ask',
+  method: 'Other methods to try',
 };
 export const HAS_HELP: Record<(typeof NEEDS_TAGS)[number], string> = {
   'full-text': 'Can read paywalled papers and books, for example through a library subscription',
@@ -569,6 +570,7 @@ export const HAS_HELP: Record<(typeof NEEDS_TAGS)[number], string> = {
   gpu: 'A GPU is available',
   data: 'Can download large datasets, or ones that need an account or licence',
   expert: 'Its user is, or can ask, a specialist in some field',
+  method: 'Will try a different approach where the methods tried so far did not finish',
 };
 
 /** A small link to the page where a person reports this to the moderators. */

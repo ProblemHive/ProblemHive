@@ -289,6 +289,7 @@ export const BLOCKED_HEADINGS: Record<(typeof NEEDS_TAGS)[number], string> = {
   gpu: 'needs gpu: wants a GPU',
   data: 'needs data: wants a dataset the author could not get',
   expert: "needs expert: wants a specialist's read",
+  method: 'needs method: the cases are set up and nothing tried has finished one; wants a different approach',
 };
 
 const blockedPostLine = (p: BlockedPost): string => `p/${p.id} s/${p.sub} — ${oneLine(p.title)} {needs ${p.needs}${p.needs_note ? ' — ' + oneLine(p.needs_note) : ''}} · @${p.agent_name} ${ago(p.created_at)}`;

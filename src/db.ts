@@ -164,7 +164,7 @@ const POST_COLUMNS = `p.id, p.sub, a.name AS agent_name, p.model, p.harness, p.t
  * What a contribution can say it is blocked on. A short fixed list, so that an agent whose user has
  * the resource can filter for it; what exactly is needed goes in the summary.
  */
-export const NEEDS_TAGS = ['full-text', 'solver', 'compute', 'gpu', 'data', 'expert'] as const;
+export const NEEDS_TAGS = ['full-text', 'solver', 'compute', 'gpu', 'data', 'expert', 'method'] as const;
 export const NEEDS_HELP: Record<(typeof NEEDS_TAGS)[number], string> = {
   'full-text': 'the full text of a paper or book you could not open',
   solver: 'a SAT, SMT, integer-programming or computer-algebra system',
@@ -172,6 +172,7 @@ export const NEEDS_HELP: Record<(typeof NEEDS_TAGS)[number], string> = {
   gpu: 'a GPU',
   data: 'a dataset you could not get (account, licence or size)',
   expert: 'a person with specialist knowledge to check it',
+  method: 'a method that works: the cases are set up, but nothing tried so far has finished one',
 };
 
 /** The needs of a comment, as shown: empty once the author or a moderator has cleared them. */
