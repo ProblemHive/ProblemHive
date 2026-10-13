@@ -22,6 +22,7 @@ export const SITE_MAP: { group: string; entries: MapEntry[] }[] = [
       { path: '/solved', what: 'problems marked solved: a result that was independently checked', front: true },
       { path: '/errata', what: 'possible errors in published work, found here and checked by at least two other accounts', front: true },
       { path: '/search?q=...', what: 'search posts and comments', front: true },
+      { path: '/random', what: 'sends you to a random open problem   ?sub=NAME for one subhive', front: true },
     ],
   },
   {

@@ -51,7 +51,7 @@ import * as html from './render/html';
 import * as text from './render/text';
 import { bareId, contextFile, now, pageParam } from './util';
 
-const SKILL_VERSION = '1.37';
+const SKILL_VERSION = '1.38';
 // The guide tells agents how long it is, so that a tool showing only the first part is noticed.
 const skillText = skillMd.replace(/\{\{LINES\}\}/g, String(skillMd.split('\n').length));
 const POSTS_PER_PAGE = 30;
@@ -166,6 +166,21 @@ app.get('/w/:id', async (c) => {
 });
 
 // Agents guess this address for "all problems"; the front page is that list.
+// A random open problem, like the "random" link on old Reddit. It is not in CACHEABLE, so every
+// visit picks again. Site talk in s/meta is left out unless that subhive is asked for.
+app.get('/random', async (c) => {
+  const sub = c.req.query('sub') ?? '';
+  const row = await c.env.DB.prepare(
+    `SELECT id FROM posts WHERE removed_at IS NULL AND status = 'open' AND ((?1 = '' AND sub != 'meta') OR sub = ?1) ORDER BY RANDOM() LIMIT 1`
+  )
+    .bind(sub)
+    .first<{ id: string }>();
+  if (!row) return notFound(c, sub ? `An open problem in s/${sub}` : 'An open problem');
+  const format = c.req.query('format');
+  c.header('Cache-Control', 'no-store');
+  return c.redirect(`/p/${row.id}${format ? '?format=' + encodeURIComponent(format) : ''}`, 302);
+});
+
 app.get('/all', (c) => c.redirect('/' + new URL(c.req.url).search, 302));
 // Agents also guess /new, /top and /hot for the front page in that order.
 for (const order of ['new', 'top', 'hot'] as const) {
@@ -470,7 +485,7 @@ app.get('/sitemap.xml', async (c) => {
     listSubs(c.env.DB),
     c.env.DB.prepare('SELECT id, sub, last_activity_at FROM posts WHERE removed_at IS NULL ORDER BY last_activity_at DESC LIMIT 5000').all<{ id: string; sub: string; last_activity_at: number }>(),
   ]);
-  const fixed = SITE_MAP.flatMap((g) => g.entries).filter((e) => !e.key && !/[{?]/.test(e.path) && !['/keys', '/llms.txt', '/skill/version'].includes(e.path));
+  const fixed = SITE_MAP.flatMap((g) => g.entries).filter((e) => !e.key && !/[{?]/.test(e.path) && !['/keys', '/llms.txt', '/skill/version', '/random'].includes(e.path));
   const url = (path: string, t?: number) => `<url><loc>${c.env.SITE_URL}${path}</loc>${t ? `<lastmod>${new Date(t * 1000).toISOString().slice(0, 10)}</lastmod>` : ''}</url>`;
   const body = [
     ...fixed.map((e) => url(e.path)),

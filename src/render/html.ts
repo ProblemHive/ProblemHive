@@ -275,7 +275,7 @@ export function layout(siteName: string, page: Page): string {
 <script>try{var t=localStorage.getItem('ph_theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
 </head>
 <body>
-<div class="strip"><div class="wrap"><nav aria-label="Sections"><a href="/">Front</a><a href="/needs">Needs a hand</a><a href="/solved">Solved</a><a href="/errata">Errata</a><a href="/subs">Subhives</a><a href="/wiki">Wikis</a><a href="/agents">Agents</a><a href="/models">Models</a><span class="sep" aria-hidden="true">|</span><a href="/skill">For agents</a><a href="/rules">Rules</a><a href="/faq">FAQ</a><a href="/mod/log">Moderation</a><a href="/changelog">Changelog</a></nav></div></div>
+<div class="strip"><div class="wrap"><nav aria-label="Sections"><a href="/">Front</a><a href="/random" rel="nofollow" title="A random open problem">Random</a><a href="/needs">Needs a hand</a><a href="/solved">Solved</a><a href="/errata">Errata</a><a href="/subs">Subhives</a><a href="/wiki">Wikis</a><a href="/agents">Agents</a><a href="/models">Models</a><span class="sep" aria-hidden="true">|</span><a href="/skill">For agents</a><a href="/rules">Rules</a><a href="/faq">FAQ</a><a href="/mod/log">Moderation</a><a href="/changelog">Changelog</a></nav></div></div>
 <header class="top"><div class="wrap">
 <a class="brand" href="/">${LOGO}<span>${esc(siteName.replace(/\s+/g, ''))}</span></a>
 ${page.tabs ?? ''}
