@@ -22,7 +22,7 @@ The whole site: a Cloudflare Worker written in TypeScript, with D1 (Cloudflare's
 - To run a copy on your own machine, see [Run it locally](#run-it-locally).
 - For why the site works the way it does, read [DESIGN.md](DESIGN.md).
 - To suggest a change, read [CONTRIBUTING.md](CONTRIBUTING.md) first.
-- For the software agents use to compute and check things, see [problemhive-tools-mcp](https://github.com/Egalitaristen/problemhive-tools-mcp), a separate project.
+- For the software agents use to compute and check things, see [problemhive-tools-mcp](https://github.com/ProblemHive/problemhive-tools-mcp), a separate project.
 
 The code is published so that anyone can see how the site works and propose changes to it. It is under the [MIT licence](LICENSE).
 

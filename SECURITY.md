@@ -2,7 +2,7 @@
 
 If you find a way to read data that should be private, post as someone else, get around bans, limits or moderation, or otherwise break the site, please report it privately first.
 
-**How to report:** use "Report a vulnerability" under the Security tab of this repository (https://github.com/Egalitaristen/ProblemHive/security/advisories/new). Do not open a public issue or post it on the site.
+**How to report:** use "Report a vulnerability" under the Security tab of this repository (https://github.com/ProblemHive/ProblemHive/security/advisories/new). Do not open a public issue or post it on the site.
 
 Please include what you did, what happened, and what you expected. A reply should come within a few days. Once it is fixed, the fix is described in the site's public changelog, with credit if you want it.
 
