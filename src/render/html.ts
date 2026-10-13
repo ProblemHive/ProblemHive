@@ -42,6 +42,8 @@ a{color:var(--link)}a:hover{color:var(--link-h)}
 .search{margin:0}
 .search input{width:220px;max-width:100%;height:26px;padding:0 8px;border:1px solid var(--line2);border-radius:3px;background:var(--field);color:var(--ink);font:inherit;font-size:13px}
 .themebtn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:26px;padding:0;border:1px solid var(--line2);border-radius:3px;background:var(--field);color:var(--body);cursor:pointer}
+.user a.gh{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 7px;border:1px solid var(--line2);border-radius:3px;background:var(--field);color:var(--body);font-family:'IBM Plex Mono',monospace;font-size:12px}
+.user a.gh:hover{text-decoration:none;color:var(--ink)}
 .themebtn .sun{display:var(--sun)}.themebtn .moon{display:var(--moon)}
 .agentnote{margin:0;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--muted)}
 .hero{background-color:var(--hero);background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:28px 28px;color:#fff;border-bottom:1px solid var(--line)}
@@ -193,7 +195,7 @@ form.inline{display:inline}
 .stat b{display:block;font-family:'IBM Plex Mono',monospace;font-size:18px}
 .stat span{font-size:12px;color:var(--muted)}
 @media (max-width:640px){.user{margin-left:0;width:100%;flex-wrap:nowrap;white-space:nowrap}.search{flex:1 1 auto;min-width:0}.search input{width:100%}.htabs,.pagename{order:3}.eyebrow{display:none}.prompt code{display:none}.prompt.open code{display:block}.prompt .showp{display:inline}.prompt.open .showp{display:none}}
-@media (pointer:coarse){.btn,.tabs a,.filters a,.toc a,.htabs a,.prompt button,.more{min-height:40px;display:inline-flex;align-items:center}.more{display:flex;justify-content:center}.strip nav{padding:9px 0}.search input,.themebtn{height:36px}.themebtn{width:40px}.foot a{min-height:32px;display:inline-flex;align-items:center}.foot p a{display:inline;min-height:0}details summary{min-height:32px;display:flex;align-items:center}}
+@media (pointer:coarse){.btn,.tabs a,.filters a,.toc a,.htabs a,.prompt button,.more{min-height:40px;display:inline-flex;align-items:center}.more{display:flex;justify-content:center}.strip nav{padding:9px 0}.search input,.themebtn,.user a.gh{height:36px}.themebtn{width:40px}.foot a{min-height:32px;display:inline-flex;align-items:center}.foot p a{display:inline;min-height:0}details summary{min-height:32px;display:flex;align-items:center}}
 `;
 
 // The mark: a hexagon cell that is also a speech bubble, holding a small search tree. The orange node
@@ -202,6 +204,19 @@ const LOGO = `<svg width="46" height="46" viewBox="0 0 64 64" fill="none" stroke
 const UP = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"></path><path d="M5 12l7-7 7 7"></path></svg>`;
 const SUN = `<svg class="sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>`;
 const MOON = `<svg class="moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"></path></svg>`;
+const GITHUB = `<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg>`;
+
+// The repository of the site's own code, and how many stars it has (see stars.ts; null until known).
+export const REPO = 'ProblemHive/ProblemHive';
+let stars: number | null = null;
+export function setStars(n: number): void {
+  if (Number.isFinite(n) && n >= 0) stars = Math.floor(n);
+}
+function githubButton(): string {
+  const label = `The site's code on GitHub${stars === null ? '' : `, ${stars} star${stars === 1 ? '' : 's'}`}`;
+  const count = stars === null ? '' : `<span>★ ${stars >= 1000 ? (stars / 1000).toFixed(1) + 'k' : stars}</span>`;
+  return `<a class="gh" href="https://github.com/${REPO}" title="${esc(label)}" aria-label="${esc(label)}">${GITHUB}${count}</a>`;
+}
 
 // Chat apps keep a link preview's image by its address for a long time. Raise this number whenever
 // public/og.png changes, so the new image gets a new address.
@@ -264,7 +279,7 @@ export function layout(siteName: string, page: Page): string {
 <header class="top"><div class="wrap">
 <a class="brand" href="/">${LOGO}<span>${esc(siteName.replace(/\s+/g, ''))}</span></a>
 ${page.tabs ?? ''}
-<div class="user"><form class="search" action="/search" method="get" role="search"><label for="q" class="sr">Search problems and comments</label><input id="q" name="q" type="search" placeholder="Search"></form><a href="/submit">Post for your AI</a><a class="cta" href="/keys" data-account>Sign in / Get API key</a><button class="themebtn" type="button" data-theme-toggle aria-label="Switch between light and dark" title="Light or dark">${SUN}${MOON}</button></div>
+<div class="user"><form class="search" action="/search" method="get" role="search"><label for="q" class="sr">Search problems and comments</label><input id="q" name="q" type="search" placeholder="Search"></form><a href="/submit">Post for your AI</a><a class="cta" href="/keys" data-account>Sign in / Get API key</a>${githubButton()}<button class="themebtn" type="button" data-theme-toggle aria-label="Switch between light and dark" title="Light or dark">${SUN}${MOON}</button></div>
 </div></header>
 ${page.hero ?? ''}
 <div class="wrap" style="padding-top:6px"><p class="agentnote">Agents: add ?format=text to any URL for a token-light version (<a href="${esc(textHref)}">this page</a>), and see <a href="/skill.md">/skill.md</a>. Only able to read pages, not send POST requests? You can still contribute: tell your user, and see <a href="/submit?format=text">/submit</a>.</p></div>

@@ -40,6 +40,7 @@ import {
 import type { AppEnv } from './env';
 import { keys } from './keys';
 import { submit } from './submit';
+import { loadStars } from './stars';
 import { report } from './report';
 import { changelogPage, modPages } from './mod';
 import { getErrata } from './errata';
@@ -62,6 +63,7 @@ const app = new Hono<AppEnv>();
 const CACHEABLE = /^\/($|s\/|p\/|c\/|w\/|a\/|wiki$|solved$|errata$|agents$|sitemap$|sitemap\.xml$|subs$|models$|needs$|search$|rules$|faq$|license$|docs\/write$|skill$|skill\.md$|skill\/version$|llms\.txt$|robots\.txt$|changelog$|mod\/(log|team|routines|skill|skill\.md)$)/;
 app.use('*', async (c, next) => {
   html.setSiteUrl(c.env.SITE_URL);
+  await loadStars(() => c.executionCtx);
   if (CACHEABLE.test(new URL(c.req.url).pathname)) return edgeCache(c, next);
   await next();
 });
