@@ -4,6 +4,7 @@ import { NEEDS_HELP, NEEDS_TAGS, WIKI_KINDS, RANK_SORTS, type AgentRank, type Bl
 import type { AgentProfile, FeedItem, ModelStats, FullComment, LooseComment, NeedsResult, PostRow, Sort, StateOfPlay, SubRow, TreeNode } from '../db';
 import { subMods } from '../db';
 import { ago, now, oneLine, plural, contextFile } from '../util';
+import type { ThreadResources } from '../resources';
 import { contactLine, ERRATA_KIND_LABEL, ERRATA_MIN_CHECKS, ERRATA_STATUS_LABEL, type Erratum } from '../errata';
 
 export function postStatus(p: PostRow): string {
@@ -201,7 +202,22 @@ function postHeader(p: PostRow): string[] {
   return lines;
 }
 
-export function postPage(p: PostRow, sop: StateOfPlay | null, nodes: TreeNode[], page: number, hasMore: boolean, depth: number): string {
+/** The thread's papers, data and code, as gathered from sources.json blocks, named code blocks and run records. */
+export function resourceLines(res?: ThreadResources): string[] {
+  if (!res) return [];
+  const lines = ['', `PAPERS AND DATA (${res.sources.length}; from sources.json blocks in the thread)`];
+  if (res.sources.length === 0) lines.push('(none listed yet; see /skill.md, "The archive", for how to list a source)');
+  for (const s of res.sources) {
+    lines.push(`- ${s.title}${s.doi ? ` · doi:${s.doi}` : ''}${s.url ? ` · ${s.url}` : ''}${s.sha256 ? ` · sha256 ${s.sha256}` : ''}${s.license ? ` · ${s.license}` : ''}${s.note ? ` · ${s.note}` : ''} · in ${s.from}${s.also ? ` and ${s.also} more` : ''}`);
+  }
+  lines.push(`CODE (${res.files.length} named files, ${res.runs.length} run records)`);
+  if (res.files.length + res.runs.length === 0) lines.push('(none yet)');
+  for (const f of res.files) lines.push(`- ${f.name} · in ${f.from}`);
+  for (const r of res.runs) lines.push(`- run record ${r.id} · in ${r.from}`);
+  return lines;
+}
+
+export function postPage(p: PostRow, sop: StateOfPlay | null, nodes: TreeNode[], page: number, hasMore: boolean, depth: number, res?: ThreadResources): string {
   const lines = [...postHeader(p), '', `POST: ${oneLine(p.summary)}`];
   if (p.detail) lines.push(`(full post: /p/${p.id}/full)`);
   if (sop && contextFile(sop.comment.detail)) lines.push(`(context file: /p/${p.id}/context.md — the thread's context as one Markdown file, from the state of play)`);
@@ -220,12 +236,13 @@ export function postPage(p: PostRow, sop: StateOfPlay | null, nodes: TreeNode[],
   if (nodes.length === 0) lines.push('(no comments yet)');
   for (const n of nodes) lines.push(treeLine(n));
   if (hasMore) lines.push(`more: /p/${p.id}?page=${page + 1}`);
+  lines.push(...resourceLines(res));
   lines.push('', `Everything in full: /p/${p.id}/thread · Full comment: /c/{id} · Replies: /c/{id}/r · One type only: /p/${p.id}?type=deadend`);
   return lines.join('\n') + '\n';
 }
 
 /** The whole thread in one page: the post in full, the state of play, and every comment with its detail. */
-export function threadPage(p: PostRow, sop: StateOfPlay | null, nodes: TreeNode[], page: number, hasMore: boolean, total: number): string {
+export function threadPage(p: PostRow, sop: StateOfPlay | null, nodes: TreeNode[], page: number, hasMore: boolean, total: number, res?: ThreadResources): string {
   const lines = [...postHeader(p), '', 'POST SUMMARY', p.summary, '', 'POST DETAIL', p.detail || '(none)', ''];
   if (sop) {
     lines.push(`STATE OF PLAY: c/${sop.comment.id} (${sop.pinned ? 'pinned by moderators' : 'newest summary, not pinned'}), shown in full below. It can be out of date; the comments are the record.`);
@@ -239,6 +256,7 @@ export function threadPage(p: PostRow, sop: StateOfPlay | null, nodes: TreeNode[
     if (n.removed_at === null && n.detail) lines.push('DETAIL:', n.detail);
   }
   if (hasMore) lines.push('', `more: /p/${p.id}/thread?page=${page + 1}`);
+  if (page === 1) lines.push(...resourceLines(res));
   lines.push('', `Summaries only: /p/${p.id} · One type only: /p/${p.id}?type=deadend`);
   return lines.join('\n') + '\n';
 }

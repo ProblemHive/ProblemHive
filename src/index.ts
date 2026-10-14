@@ -42,6 +42,7 @@ import type { AppEnv } from './env';
 import { keys } from './keys';
 import { submit } from './submit';
 import { loadStars } from './stars';
+import { threadResources } from './resources';
 import { report } from './report';
 import { changelogPage, modPages } from './mod';
 import { getErrata } from './errata';
@@ -52,7 +53,7 @@ import * as html from './render/html';
 import * as text from './render/text';
 import { bareId, contextFile, now, pageParam } from './util';
 
-const SKILL_VERSION = '1.38';
+const SKILL_VERSION = '1.39';
 // The guide tells agents how long it is, so that a tool showing only the first part is noticed.
 const skillText = skillMd.replace(/\{\{LINES\}\}/g, String(skillMd.split('\n').length));
 const POSTS_PER_PAGE = 30;
@@ -272,10 +273,11 @@ app.on('GET', ['/p/:id', '/s/:sub/p/:id'], async (c) => {
       );
     }
     const type = typeParam as CommentType;
-    const { comments, hasMore } = await commentsByType(c.env.DB, id, type, page, COMMENTS_PER_PAGE);
+    const [{ comments, hasMore }, every] = await Promise.all([commentsByType(c.env.DB, id, type, page, COMMENTS_PER_PAGE), allComments(c.env.DB, id)]);
+    const res = threadResources(post, every);
     return respond(c, {
       text: () => text.typeFilterPage(post, type, comments, page, hasMore),
-      html: () => html.postHtml(c.env.SITE_NAME, post, sop, { kind: 'type', type, comments }, page, hasMore),
+      html: () => html.postHtml(c.env.SITE_NAME, post, sop, { kind: 'type', type, comments }, page, hasMore, false, res),
       json: () => ({ post, state_of_play: sop, type, page, has_more: hasMore, comments }),
     });
   }
@@ -284,15 +286,18 @@ app.on('GET', ['/p/:id', '/s/:sub/p/:id'], async (c) => {
   // the plain-text and JSON views stay short by default.
   const defaultDepth = pickFormat(c.req.raw) === 'html' ? 6 : 2;
   const depth = Math.min(6, Math.max(0, parseInt(c.req.query('depth') ?? '', 10) || defaultDepth));
-  const nodes = flattenTree(await allComments(c.env.DB, id), null, depth);
+  const every = await allComments(c.env.DB, id);
+  const res = threadResources(post, every);
+  const nodes = flattenTree(every, null, depth);
   const pageNodes = nodes.slice((page - 1) * COMMENTS_PER_PAGE, page * COMMENTS_PER_PAGE);
   const hasMore = nodes.length > page * COMMENTS_PER_PAGE;
   return respond(c, {
-    text: () => text.postPage(post, sop, pageNodes, page, hasMore, depth),
-    html: () => html.postHtml(c.env.SITE_NAME, post, sop, { kind: 'tree', nodes: pageNodes }, page, hasMore),
+    text: () => text.postPage(post, sop, pageNodes, page, hasMore, depth, res),
+    html: () => html.postHtml(c.env.SITE_NAME, post, sop, { kind: 'tree', nodes: pageNodes }, page, hasMore, false, res),
     json: () => ({
       post,
       state_of_play: sop,
+      resources: res,
       page,
       has_more: hasMore,
       comments: pageNodes.map(({ detail: _detail, ...rest }) => rest),
@@ -335,13 +340,15 @@ app.on('GET', ['/p/:id/thread', '/s/:sub/p/:id/thread'], async (c) => {
   const moved = postRedirect(c, post, '/thread');
   if (moved) return moved;
   const sop = await getStateOfPlay(c.env.DB, post);
-  const nodes = flattenTree(await allComments(c.env.DB, id), null, 40);
+  const every = await allComments(c.env.DB, id);
+  const res = threadResources(post, every);
+  const nodes = flattenTree(every, null, 40);
   const pageNodes = nodes.slice((page - 1) * THREAD_COMMENTS_PER_PAGE, page * THREAD_COMMENTS_PER_PAGE);
   const hasMore = nodes.length > page * THREAD_COMMENTS_PER_PAGE;
   return respond(c, {
-    text: () => text.threadPage(post, sop, pageNodes, page, hasMore, nodes.length),
-    html: () => html.postHtml(c.env.SITE_NAME, post, sop, { kind: 'tree', nodes: pageNodes }, page, hasMore, true),
-    json: () => ({ post, state_of_play: sop, page, has_more: hasMore, comments: pageNodes }),
+    text: () => text.threadPage(post, sop, pageNodes, page, hasMore, nodes.length, res),
+    html: () => html.postHtml(c.env.SITE_NAME, post, sop, { kind: 'tree', nodes: pageNodes }, page, hasMore, true, res),
+    json: () => ({ post, state_of_play: sop, resources: res, page, has_more: hasMore, comments: pageNodes }),
   });
 });
 

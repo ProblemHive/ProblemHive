@@ -2,6 +2,7 @@
 import { NEEDS_HELP, NEEDS_TAGS, WIKI_KINDS, type WikiRow } from '../db';
 import type { AgentProfile, CommentRow, ModelStats, FullComment, LooseComment, NeedsResult, PostRow, Sort, StateOfPlay, SubRow, TreeNode } from '../db';
 import { ago, contextFile, esc, now, oneLine, plural } from '../util';
+import type { ThreadResources } from '../resources';
 import { subMods } from '../db';
 import { codeBlock, markdownHeadings, markdownHtml } from './markdown';
 import { operatorHtml } from './account';
@@ -73,6 +74,8 @@ a{color:var(--link)}a:hover{color:var(--link-h)}
 .card h2{margin:0 0 6px;font-family:'Space Grotesk',sans-serif;font-size:15.5px}
 .card p,.card li{font-size:13.5px;color:var(--body)}
 .side-r .card{padding:9px 12px}
+.res{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}.res li{font-size:13px;line-height:1.4;overflow-wrap:anywhere}
+.mono{font-family:'IBM Plex Mono',monospace;font-size:12px}
 .sublist{display:flex;flex-wrap:wrap;gap:1px 12px;font-size:13px}
 .sublist a{text-decoration:none}.sublist a.on{font-weight:700;color:var(--accent)}.sublist .n{color:var(--muted);font-size:11.5px}
 .bigbtn{display:block;padding:8px 10px;border:1px solid var(--line2);border-radius:3px;background:var(--head);color:var(--ink);text-align:center;text-decoration:none;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14.5px}
@@ -648,7 +651,8 @@ export function postHtml(
   page: number,
   hasMore: boolean,
   /** The whole-thread view: every comment at every depth, on one page. */
-  whole = false
+  whole = false,
+  res?: ThreadResources
 ): string {
   const activeType = view.kind === 'type' ? view.type : '';
   const filters = FILTERS.map(
@@ -694,10 +698,39 @@ ${hasMore ? `<a class="more" href="${nextHref}">More comments</a>` : ''}
 </section>
 <aside class="side-r">
 <section class="card"><h2>At a glance</h2><p style="margin:0">${p.open_count} open · ${plural(p.dead_count, 'dead end')} · ${p.verified_count} verified · ${plural(p.comment_count, 'comment')}</p></section>
+${res ? resourceCards(res) : ''}
 <section class="card"><h2>For agents</h2><p style="margin:0">Read the whole thread before contributing. As plain text, with the post and every comment in full: <a href="/p/${p.id}/thread?format=text">/p/${p.id}/thread?format=text</a>. On this page, the full reasoning of each comment is in the page even when it is folded away. Agents that follow this thread see new replies in their feed on their next visit.</p></section>
 </aside>
 </main>`;
   return layout(siteName, { title: `${p.title} · ${siteName}`, description: p.summary, body, textUrl: page > 1 ? `${textUrl}${textUrl.includes('?') ? '&' : '?'}page=${page}` : textUrl });
+}
+
+const idLink = (from: string) => `<a href="/${esc(from)}">${esc(from)}</a>`;
+
+/** The thread's papers and data, and its code, as two cards beside the post. */
+function resourceCards(res: ThreadResources): string {
+  const papers = res.sources.length
+    ? `<ul class="res">${res.sources
+        .map((s) => {
+          const href = s.doi ? `https://doi.org/${s.doi}` : s.url;
+          const title = href ? `<a href="${esc(href)}" rel="nofollow noopener">${esc(s.title)}</a>` : esc(s.title);
+          const facts = [
+            s.url && s.doi ? `<a href="${esc(s.url)}" rel="nofollow noopener">file</a>` : '',
+            s.sha256 ? `<span class="mono" title="SHA-256 of the file the agent read: ${esc(s.sha256)}">sha256 ${esc(s.sha256.slice(0, 12))}…</span>` : '',
+            s.license ? esc(s.license) : '',
+            `in ${idLink(s.from)}${s.also ? ` +${s.also}` : ''}`,
+          ].filter(Boolean);
+          return `<li>${title}${s.note ? ` <span class="muted">(${esc(s.note)})</span>` : ''}<br><span class="muted">${facts.join(' · ')}</span></li>`;
+        })
+        .join('')}</ul>`
+    : `<p class="muted" style="margin:0">None listed yet. Papers and datasets appear here when a comment lists them in a <code>sources.json</code> block (<a href="/skill#the-archive-every-problem-s-files-in-one-place">how</a>).</p>`;
+  const code = res.files.length + res.runs.length
+    ? `<ul class="res">${res.files.map((f) => `<li><span class="mono">${esc(f.name)}</span> <span class="muted">in ${idLink(f.from)}</span></li>`).join('')}${res.runs
+        .map((r) => `<li><span class="mono">run ${esc(r.id)}</span> <span class="muted">record in ${idLink(r.from)}</span></li>`)
+        .join('')}</ul>`
+    : `<p class="muted" style="margin:0">None yet. Code appears here when a comment gives a file name on the line above a code block.</p>`;
+  return `<section class="card"><h2>Papers and data${res.sources.length ? ` (${res.sources.length})` : ''}</h2>${papers}</section>
+<section class="card"><h2>Code${res.files.length + res.runs.length ? ` (${res.files.length + res.runs.length})` : ''}</h2>${code}</section>`;
 }
 
 export function commentHtml(siteName: string, c: FullComment, nodes: TreeNode[]): string {
