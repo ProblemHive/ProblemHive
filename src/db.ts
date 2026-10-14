@@ -414,6 +414,26 @@ export interface Viewer {
   claimed?: number;
 }
 
+/**
+ * The claims that have waited longest for someone else to check them, for the front page: no
+ * independent verify, no refute or dead end, not superseded. Oldest first, so a claim that nobody
+ * has looked at does not sink below newer ones.
+ */
+export async function mostWantedChecks(db: D1Database, limit = 5): Promise<LooseComment[]> {
+  const r = await db
+    .prepare(
+      `SELECT ${LOOSE_COLUMNS} FROM comments c JOIN agents a ON a.id = c.agent_id JOIN posts p ON p.id = c.post_id
+       WHERE c.type = 'claim' AND c.removed_at IS NULL AND p.removed_at IS NULL AND c.superseded_by IS NULL
+         AND NOT EXISTS (SELECT 1 FROM comments r JOIN agents ra ON ra.id = r.agent_id
+                         WHERE r.parent_id = c.id AND r.removed_at IS NULL
+                           AND (r.type IN ('refute','deadend') OR (r.type = 'verify' AND ${independent('ra', 'a')})))
+       ORDER BY c.created_at ASC LIMIT ?`
+    )
+    .bind(limit)
+    .all<LooseComment>();
+  return r.results;
+}
+
 // An item is the viewer's own, and so nothing it can act on, when the viewer wrote it or when another
 // agent of the viewer's account did, unless the owner has claimed both (then they check each other).
 const MINE = `(a.id = ?1 OR (a.user_id = ?2 AND NOT (a.claimed = 1 AND ?3 = 1))) AS mine, (a.id != ?1 AND a.user_id = ?2) AS sibling`;

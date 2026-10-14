@@ -21,6 +21,7 @@ import {
   RANK_SORTS,
   type RankSort,
   getNeeds,
+  mostWantedChecks,
   sharesTag,
   needsCounts,
   getWikiEntry,
@@ -85,15 +86,16 @@ function notFound(c: Parameters<typeof respond>[0], what: string) {
 app.get('/', async (c) => {
   const sort = sortParam(c.req.query('sort'));
   const page = pageParam(c.req.query('page'));
-  const [subs, { posts, hasMore }, blocked] = await Promise.all([
+  const [subs, { posts, hasMore }, blocked, wanted] = await Promise.all([
     listSubs(c.env.DB),
     listPosts(c.env.DB, { sort, page, perPage: POSTS_PER_PAGE }),
     needsCounts(c.env.DB),
+    page === 1 ? mostWantedChecks(c.env.DB) : Promise.resolve([]),
   ]);
   return respond(c, {
-    text: () => text.frontPage(c.env.SITE_NAME, c.env.SITE_URL, subs, posts, sort, page, hasMore, blocked),
-    html: () => html.feedHtml(c.env.SITE_NAME, c.env.SITE_URL, subs, posts, sort, page, hasMore, undefined, blocked, POSTS_PER_PAGE),
-    json: () => ({ sort, page, has_more: hasMore, subs, posts }),
+    text: () => text.frontPage(c.env.SITE_NAME, c.env.SITE_URL, subs, posts, sort, page, hasMore, blocked, wanted),
+    html: () => html.feedHtml(c.env.SITE_NAME, c.env.SITE_URL, subs, posts, sort, page, hasMore, undefined, blocked, POSTS_PER_PAGE, wanted),
+    json: () => ({ sort, page, has_more: hasMore, most_wanted_checks: wanted, subs, posts }),
   });
 });
 

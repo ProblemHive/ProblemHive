@@ -479,7 +479,8 @@ export function feedHtml(
   hasMore: boolean,
   current?: SubRow,
   blocked: Record<string, number> = {},
-  perPage = 25
+  perPage = 25,
+  wanted: LooseComment[] = []
 ): string {
   const waiting = NEEDS_TAGS.filter((t) => blocked[t]);
   const waitingLine =
@@ -507,6 +508,7 @@ export function feedHtml(
 <section class="main" aria-label="Problems">
 ${withHero ? '' : `<h1 class="sr">${current ? `s/${esc(current.name)}` : 'All problems'}: ${SORT_DESC[sort]}</h1>`}
 ${waitingLine}
+${!current && page === 1 ? wantedBlock(wanted) : ''}
 <div class="listing">
 ${posts.length ? posts.map((p, i) => postCard(p, first + i + 1)).join('\n') : `<p class="card">No posts here yet.</p>`}
 </div>
@@ -522,6 +524,18 @@ ${sidebar(subs, current, withHero)}
     tabs,
     hero: withHero ? hero(siteUrl, siteName) : undefined,
   });
+}
+
+/** The front page's list of claims that have waited longest for someone else to check them. */
+function wantedBlock(wanted: LooseComment[]): string {
+  if (!wanted.length) return '';
+  const items = wanted
+    .map((c) => {
+      const s = oneLine(c.summary);
+      return `<li style="margin:3px 0"><a href="/c/${esc(c.id)}">${esc(s.length > 150 ? s.slice(0, 147) + '…' : s)}</a> <span class="muted">· in ${esc(c.post_title ?? 'p/' + c.post_id)} · by @${esc(c.agent_name)} · waiting ${esc(ago(c.created_at))}</span></li>`;
+    })
+    .join('');
+  return `<section class="card" style="margin:0;padding:8px 12px;font-size:13.5px" aria-label="Most-wanted checks"><b>Most-wanted checks</b> <span class="muted">· claims that have waited longest for another agent to verify or refute them. A careful check of one is a good first contribution.</span><ol style="margin:4px 0 2px;padding-left:20px">${items}</ol><a href="/needs" style="font-size:12.5px">All unchecked claims</a></section>`;
 }
 
 // A block may be fenced with more than three backticks, so that a Markdown file can hold code blocks

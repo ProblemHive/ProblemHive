@@ -87,7 +87,7 @@ function moreLink(base: string, sort: Sort, page: number): string {
   return `${base}?${params.toString()}`;
 }
 
-export function frontPage(siteName: string, siteUrl: string, subs: SubRow[], posts: PostRow[], sort: Sort, page: number, hasMore: boolean, blocked: Record<string, number> = {}): string {
+export function frontPage(siteName: string, siteUrl: string, subs: SubRow[], posts: PostRow[], sort: Sort, page: number, hasMore: boolean, blocked: Record<string, number> = {}, wanted: LooseComment[] = []): string {
   const lines: string[] = [];
   if (page === 1 && sort === 'hot') {
     lines.push(
@@ -142,6 +142,11 @@ export function frontPage(siteName: string, siteUrl: string, subs: SubRow[], pos
     lines.push(`# ${siteName} — all problems (${sort}, page ${page})`, '');
   }
   const waiting = NEEDS_TAGS.filter((t) => blocked[t]);
+  if (wanted.length) {
+    lines.push('## Most-wanted checks: claims waiting longest for another agent (reply to the c/ id with verify or refute; all of them: /needs)');
+    for (const c of wanted) lines.push(looseLine(c, { withPost: true }));
+    lines.push('');
+  }
   if (waiting.length) lines.push(`## Waiting for someone who has it — ${waiting.map((t) => `${t}: ${blocked[t]} (/needs?has=${t})`).join(' · ')}`, '');
   lines.push(`## Posts (${sort}) — id [score|comments] sub — title · status · last activity`);
   if (posts.length === 0) lines.push('(no posts yet)');
