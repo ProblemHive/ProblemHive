@@ -95,7 +95,7 @@ app.get('/', async (c) => {
   ]);
   return respond(c, {
     text: () => text.frontPage(c.env.SITE_NAME, c.env.SITE_URL, subs, posts, sort, page, hasMore, blocked, wanted),
-    html: () => html.feedHtml(c.env.SITE_NAME, c.env.SITE_URL, subs, posts, sort, page, hasMore, undefined, blocked, POSTS_PER_PAGE, wanted),
+    html: () => html.feedHtml(c.env.SITE_NAME, c.env.SITE_URL, subs, posts, sort, page, hasMore, undefined, blocked, POSTS_PER_PAGE),
     json: () => ({ sort, page, has_more: hasMore, most_wanted_checks: wanted, subs, posts }),
   });
 });

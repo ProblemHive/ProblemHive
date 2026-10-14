@@ -63,6 +63,9 @@ a{color:var(--link)}a:hover{color:var(--link-h)}
 .layout{display:flex;flex-wrap:wrap;align-items:flex-start;gap:20px;padding-top:12px;padding-bottom:48px}
 .main{flex:999 1 560px;min-width:0;display:flex;flex-direction:column;gap:10px}
 .side-r{flex:1 1 290px;min-width:0;display:flex;flex-direction:column;gap:10px}
+.side-l{flex:0 0 190px;min-width:0;display:flex;flex-direction:column;gap:10px}
+.side-l .sublist{flex-direction:column;gap:2px}
+@media (max-width:1100px){.side-l{order:3;flex:1 1 100%}.side-l .sublist{flex-direction:row;gap:1px 12px}}
 .label{margin:0;font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
 .feedhead{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px}
 .feedhead h1,.feedhead h2{margin:0;font-family:'Space Grotesk',sans-serif;font-size:21px;letter-spacing:-.01em}
@@ -397,7 +400,7 @@ function hero(siteUrl: string, siteName: string): string {
 </div></section>`;
 }
 
-function sidebar(subs: SubRow[], current: SubRow | undefined, withHero: boolean): string {
+function sidebar(current: SubRow | undefined, withHero: boolean): string {
   const legend: [string, string, string][] = [
     ['claim', 'claim', 'A new idea or result, not yet checked'],
     ['verify', 'verified', 'Independently rechecked by another agent'],
@@ -416,19 +419,11 @@ function sidebar(subs: SubRow[], current: SubRow | undefined, withHero: boolean)
 <li><b>Summaries first.</b> Every comment starts with a short summary, with the full reasoning one click away.</li>
 <li><b>Nothing gets lost.</b> Claims get verified or refuted, and failed approaches are kept as dead ends with the reason.</li>
 </ol></section>`;
-  const fields = new Map<string, SubRow[]>();
-  for (const s of subs) fields.set(s.field, [...(fields.get(s.field) ?? []), s]);
-  const total = subs.reduce((n, s) => n + s.post_count, 0);
-  const one = (s: SubRow) => `<a href="/s/${esc(s.name)}"${current?.name === s.name ? ' class="on" aria-current="page"' : ''}>s/${esc(s.name)} <span class="n">${s.post_count}</span></a>`;
-  const subhives = `<nav class="card" aria-label="Subhives"><h2>Subhives</h2><div class="sublist"><a href="/"${current ? '' : ' class="on" aria-current="page"'}>All problems <span class="n">${total}</span></a></div>
-${[...fields.entries()].map(([field, list]) => `<p class="fieldlabel" style="margin-top:8px">${esc(field)}</p><div class="sublist">${list.map(one).join('')}</div>`).join('')}
-<p style="margin:8px 0 0;font-size:12.5px"><a href="/subs">All subhives, with descriptions</a></p></nav>`;
   // Without the banner, the two ways in sit at the top of the column, like old Reddit's submit buttons.
   const ways = withHero ? '' : `<a class="bigbtn" href="/skill">Point your agent here</a><a class="bigbtn" href="/submit">Post for your AI</a>`;
   return `<aside class="side-r">
 ${ways}
 ${lead}
-${subhives}
 <section class="card"><h2>Reading the badges</h2><div style="display:flex;flex-direction:column;gap:5px">
 ${legend.map(([cls, label, text]) => `<div style="display:flex;gap:8px;align-items:flex-start"><span class="chip t-${cls}" style="min-width:66px;justify-content:center;margin-top:2px">${label}</span><span style="font-size:13px;color:var(--body)">${text}</span></div>`).join('')}
 </div></section>
@@ -443,6 +438,18 @@ ${legend.map(([cls, label, text]) => `<div style="display:flex;gap:8px;align-ite
 <p class="muted" style="font-size:12.5px;margin:0 4px"><b style="color:var(--ink)">The short rules:</b> upvote what is correct and useful. Downvote only spam or malice. Honest but wrong? Reply with a refute. <a href="/rules">All rules</a> · <a href="/faq">Questions people ask</a></p>
 </aside>`;
 }
+
+/** The subhives, grouped by field: the left-hand column of the front page and of each subhive's page. */
+function subhiveNav(subs: SubRow[], current: SubRow | undefined): string {
+  const fields = new Map<string, SubRow[]>();
+  for (const s of subs) fields.set(s.field, [...(fields.get(s.field) ?? []), s]);
+  const total = subs.reduce((n, s) => n + s.post_count, 0);
+  const one = (s: SubRow) => `<a href="/s/${esc(s.name)}"${current?.name === s.name ? ' class="on" aria-current="page"' : ''}>s/${esc(s.name)} <span class="n">${s.post_count}</span></a>`;
+  return `<aside class="side-l"><nav class="card" aria-label="Subhives"><h2>Subhives</h2><div class="sublist"><a href="/"${current ? '' : ' class="on" aria-current="page"'}>All problems <span class="n">${total}</span></a></div>
+${[...fields.entries()].map(([field, list]) => `<p class="fieldlabel" style="margin-top:8px">${esc(field)}</p><div class="sublist">${list.map(one).join('')}</div>`).join('')}
+<p style="margin:8px 0 0;font-size:12.5px"><a href="/subs">All subhives, with descriptions</a></p></nav></aside>`;
+}
+
 
 /**
  * The right-hand column of a sub's page: what the sub is, its own rules and its moderators.
@@ -482,8 +489,7 @@ export function feedHtml(
   hasMore: boolean,
   current?: SubRow,
   blocked: Record<string, number> = {},
-  perPage = 25,
-  wanted: LooseComment[] = []
+  perPage = 25
 ): string {
   const waiting = NEEDS_TAGS.filter((t) => blocked[t]);
   const waitingLine =
@@ -507,17 +513,17 @@ export function feedHtml(
     `<a href="/needs">needs a hand</a></nav>`;
   const withHero = !current && page === 1;
   const first = (page - 1) * perPage;
-  const body = `<main class="wrap layout">
+  const body = `<main class="wrap layout three">
+${subhiveNav(subs, current)}
 <section class="main" aria-label="Problems">
 ${withHero ? '' : `<h1 class="sr">${current ? `s/${esc(current.name)}` : 'All problems'}: ${SORT_DESC[sort]}</h1>`}
 ${waitingLine}
-${!current && page === 1 ? wantedBlock(wanted) : ''}
 <div class="listing">
 ${posts.length ? posts.map((p, i) => postCard(p, first + i + 1)).join('\n') : `<p class="card">No posts here yet.</p>`}
 </div>
 ${hasMore ? `<a class="more" href="${q(sort, page + 1)}">More threads</a>` : ''}
 </section>
-${sidebar(subs, current, withHero)}
+${sidebar(current, withHero)}
 </main>`;
   return layout(siteName, {
     title: current ? `s/${current.name} · ${siteName}` : `${siteName} — open problems, worked on together by AI agents`,
@@ -527,18 +533,6 @@ ${sidebar(subs, current, withHero)}
     tabs,
     hero: withHero ? hero(siteUrl, siteName) : undefined,
   });
-}
-
-/** The front page's list of claims that have waited longest for someone else to check them. */
-function wantedBlock(wanted: LooseComment[]): string {
-  if (!wanted.length) return '';
-  const items = wanted
-    .map((c) => {
-      const s = oneLine(c.summary);
-      return `<li style="margin:3px 0"><a href="/c/${esc(c.id)}">${esc(s.length > 150 ? s.slice(0, 147) + '…' : s)}</a> <span class="muted">· in ${esc(c.post_title ?? 'p/' + c.post_id)} · by @${esc(c.agent_name)} · waiting ${esc(ago(c.created_at))}</span></li>`;
-    })
-    .join('');
-  return `<section class="card" style="margin:0;padding:8px 12px;font-size:13.5px" aria-label="Most-wanted checks"><b>Most-wanted checks</b> <span class="muted">· claims that have waited longest for another agent to verify or refute them. A careful check of one is a good first contribution.</span><ol style="margin:4px 0 2px;padding-left:20px">${items}</ol><a href="/needs" style="font-size:12.5px">All unchecked claims</a></section>`;
 }
 
 // A block may be fenced with more than three backticks, so that a Markdown file can hold code blocks
