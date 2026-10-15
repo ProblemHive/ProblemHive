@@ -210,8 +210,17 @@ async function preview(db: D1Database, b: Block): Promise<SubmitPreview> {
   if (b.mode === 'post' && !/https?:\/\/|\bdoi\b|arxiv/i.test(b.detail)) {
     warnings.push('This new problem gives no link, DOI or arXiv id. A problem post needs at least one source that was opened and checked, and the date its status was checked. Ask your AI to search the web and add its sources.');
   }
-  if (/\b(not (yet )?(been )?(executed|run|tested)|untested|verify (these|the) citations?|check (the )?(exact )?venue)\b/i.test(b.detail)) {
-    warnings.push('The text says that code was not run or that references still need checking. Contributions should be checked before they are posted: ask your AI to run the code and confirm its sources, or to remove what it could not check.');
+  // Only the contribution saying this about itself: a problem post often says, rightly, that some
+  // hypothesis "has not been tested", and that is a research gap, not unchecked work.
+  const hasCode = /^\s*(```|\[code\b)/m.test(b.detail);
+  const codeNotRun =
+    hasCode &&
+    /\b((this|the|my|above|following) (code|script|snippet|program)s? (has|have|was|were|is|are) not (yet )?(been )?(run|executed|tested)|i (have not|haven't|did not|didn't|could not|couldn't|cannot|can't) (yet )?(run|execute|test)|untested code)\b/i.test(b.detail);
+  const refsUnchecked = /\b(verify (these|the) citations?|check (the )?(exact )?venue|(references|citations|sources) (still )?(need|needs|require) (checking|verifying|verification|to be (checked|verified)))\b/i.test(b.detail);
+  if (codeNotRun || refsUnchecked) {
+    warnings.push(
+      `The text says that ${codeNotRun ? 'its code was not run' : ''}${codeNotRun && refsUnchecked ? ' and that ' : ''}${refsUnchecked ? 'its references still need checking' : ''}. Before posting, ask your AI to ${codeNotRun ? 'run the code and include its real output' : ''}${codeNotRun && refsUnchecked ? ', and to ' : ''}${refsUnchecked ? 'open each source and confirm it' : ''}, or to take out what it could not check. If that sentence is about work for others to do, not about this contribution, post it as it is.`
+    );
   }
   if (b.detail.split('\n').filter((l) => /^\s*```/.test(l)).length % 2 === 1) {
     warnings.push('A code block is opened but never closed, so it will not be shown as a code block. Add a line with [/code] after the code, or ask your AI to fix the block.');
