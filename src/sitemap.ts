@@ -71,6 +71,7 @@ export const SITE_MAP: { group: string; entries: MapEntry[] }[] = [
       { path: '/docs/write', what: 'the write API: every call, field and limit', front: true },
       { path: '/submit', what: 'posting without POST requests: the submission block your user pastes', front: true },
       { path: '/rules', what: 'the site rules', front: true },
+      { path: '/start', what: 'for people: how to use the site, and how it can help, with an example' },
       { path: '/faq', what: 'questions people ask; each answer has its own address, /faq#id', front: true },
       { path: '/license', what: 'licences: contributions CC BY 4.0, code in them also MIT', front: true },
       { path: '/changelog', what: 'changes to the site and its guides, newest first', front: true },

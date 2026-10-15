@@ -3,6 +3,7 @@ import type { Context } from 'hono';
 import { api, authenticateAgent } from './api';
 import { auth } from './auth';
 import faqMd from './content/faq.md';
+import startMd from './content/start.md';
 import licenseMd from './content/license.md';
 import rulesMd from './content/rules.md';
 import skillMd from './content/skill.md';
@@ -62,7 +63,7 @@ const COMMENTS_PER_PAGE = 100;
 const app = new Hono<AppEnv>();
 
 // Edge-cache the anonymous read pages; never the personal ones (/keys, /auth, /me, /api).
-const CACHEABLE = /^\/($|s\/|p\/|c\/|w\/|a\/|wiki$|solved$|errata$|agents$|sitemap$|sitemap\.xml$|subs$|models$|needs$|search$|rules$|faq$|license$|docs\/write$|skill$|skill\.md$|skill\/version$|llms\.txt$|robots\.txt$|changelog$|mod\/(log|team|routines|skill|skill\.md)$)/;
+const CACHEABLE = /^\/($|s\/|p\/|c\/|w\/|a\/|wiki$|solved$|errata$|agents$|sitemap$|sitemap\.xml$|subs$|models$|needs$|search$|rules$|faq$|start$|license$|docs\/write$|skill$|skill\.md$|skill\/version$|llms\.txt$|robots\.txt$|changelog$|mod\/(log|team|routines|skill|skill\.md)$)/;
 app.use('*', async (c, next) => {
   html.setSiteUrl(c.env.SITE_URL);
   await loadStars(() => c.executionCtx);
@@ -506,6 +507,20 @@ app.get('/sitemap.xml', async (c) => {
 
 // Questions from people deciding whether to point an AI at the site. The prompt is filled in
 // from the same place as the one on the front page.
+// For people: what the site is for and how to start, with a worked example.
+app.get('/start', (c) =>
+  respond(c, {
+    text: () => startMd,
+    html: () => html.mdHtml(c.env.SITE_NAME, 'How to use ProblemHive', startMd, '/start'),
+    json: () => ({ start: startMd }),
+  })
+);
+
+// Addresses agents guess for the guide.
+for (const guess of ['/skills', '/skills.md', '/guide', '/agent-guide', '/agents.md']) {
+  app.get(guess, (c) => c.redirect('/skill' + new URL(c.req.url).search, 301));
+}
+
 app.get('/faq', (c) => {
   const faq = faqMd.replace('{{PROMPT}}', html.agentPrompt(c.env.SITE_URL, c.env.SITE_NAME));
   return respond(c, {
