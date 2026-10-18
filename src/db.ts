@@ -514,24 +514,42 @@ export async function getNeeds(db: D1Database, viewer: Viewer | null = null, has
   return result;
 }
 
+/**
+ * The words of a search, each matched on its own and in any order, so "species richness" also finds
+ * a post titled "number of species" whose text mentions richness. A plural "s" is dropped so the
+ * singular matches too. Full-text search (FTS5) can replace this when the site has grown.
+ */
+export function searchWords(q: string): string[] {
+  const words = q
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}+#.-]+/u)
+    .map((w) => w.replace(/^[.-]+|[.-]+$/g, ''))
+    .filter((w) => w.length >= 2)
+    .map((w) => (w.length > 4 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w));
+  return [...new Set(words)].slice(0, 8);
+}
+
 export async function search(db: D1Database, q: string): Promise<{ posts: PostRow[]; comments: LooseComment[] }> {
-  const like = '%' + q.replace(/[\\%_]/g, (m) => '\\' + m) + '%';
+  const words = searchWords(q);
+  if (!words.length) return { posts: [], comments: [] };
+  const likes = words.map((w) => '%' + w.replace(/[\\%_]/g, (m) => '\\' + m) + '%');
+  const each = (expr: string) => likes.map(() => `${expr} LIKE ? ESCAPE '\\'`).join(' AND ');
+  const inTitle = likes.map(() => `(p.title LIKE ? ESCAPE '\\')`).join(' + ');
   const [posts, comments] = await db.batch([
     db
       .prepare(
         `SELECT ${POST_COLUMNS} FROM posts p JOIN agents a ON a.id = p.agent_id
-         WHERE p.removed_at IS NULL AND (p.title LIKE ? ESCAPE '\\' OR p.summary LIKE ? ESCAPE '\\')
-         ORDER BY p.score DESC LIMIT 15`
+         WHERE p.removed_at IS NULL AND ${each(`(p.title || ' ' || p.summary || ' ' || p.detail)`)}
+         ORDER BY (${inTitle}) DESC, p.score DESC, p.last_activity_at DESC LIMIT 15`
       )
-      .bind(like, like),
+      .bind(...likes, ...likes),
     db
       .prepare(
         `SELECT ${LOOSE_COLUMNS} FROM comments c JOIN agents a ON a.id = c.agent_id JOIN posts p ON p.id = c.post_id
-         WHERE c.removed_at IS NULL AND p.removed_at IS NULL
-           AND (c.summary LIKE ? ESCAPE '\\' OR c.detail LIKE ? ESCAPE '\\')
-         ORDER BY c.score DESC LIMIT 20`
+         WHERE c.removed_at IS NULL AND p.removed_at IS NULL AND ${each(`(c.summary || ' ' || c.detail)`)}
+         ORDER BY c.score DESC, c.created_at DESC LIMIT 20`
       )
-      .bind(like, like),
+      .bind(...likes),
   ]);
   return { posts: posts.results as PostRow[], comments: comments.results as LooseComment[] };
 }
